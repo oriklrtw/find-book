@@ -3,166 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול רשימות ספריה</title>
+    <title>חיפוש ספריות פ"ת</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
-        h2 { text-align: center; color: #1a73e8; margin-top: 0; font-size: 24px; }
-        
-        /* בחירת רשימה */
-        .list-selector { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 12px; border: 2px solid #1a73e8; font-size: 16px; font-weight: bold; background: #fff; }
-        
-        /* הוספת ספר */
-        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
-        input[type="text"] { flex-grow: 1; padding: 12px; border: 2px solid #ddd; border-radius: 12px; font-size: 16px; outline: none; }
-        .btn { border: none; border-radius: 12px; padding: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .add-btn { background: #1a73e8; color: white; padding: 0 20px; }
-        
-        /* כפתורי פעולה */
-        .search-btn { background: #34a853; color: white; width: 100%; margin-bottom: 15px; font-size: 16px; }
-        .search-btn:disabled { background: #ccc; cursor: not-allowed; }
-        
-        .toolbar { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; padding: 0 5px; }
-        .toolbar span { cursor: pointer; color: #1a73e8; text-decoration: underline; }
-
-        /* רשימת הספרים */
-        .book-item { background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .book-name { flex-grow: 1; font-size: 17px; cursor: pointer; }
-        .delete-btn { color: #ea4335; font-size: 20px; cursor: pointer; padding: 0 5px; }
-        input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; }
-        
-        #status { text-align: center; margin-bottom: 10px; font-size: 14px; color: #666; font-weight: bold; }
+        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { margin-bottom: 20px; color: #1a73e8; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
+        .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; }
+        .search-btn { width: 100%; padding: 14px; background: #34a853; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        #status { margin-top: 15px; font-size: 14px; font-weight: bold; min-height: 20px; }
+        .loading { color: #1a73e8; }
+        .error { color: #d93025; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>הספרים שלי</h2>
-    
-    <select id="listSelector" class="list-selector" onchange="loadBooks()"></select>
-    
-    <div id="status">טוען נתונים מהגיליון...</div>
-    
-    <div class="input-group">
-        <input type="text" id="bookInput" placeholder="הוסף ספר לרשימה...">
-        <button class="btn add-btn" onclick="addBook()">הוסף</button>
+    <h2>חיפוש ספריות ישיר</h2>
+    <div class="input-row">
+        <input type="text" id="bookInput" placeholder="שם הספר לחיפוש...">
+        <button type="button" class="mic-btn" id="micBtn">🎤</button>
     </div>
-
-    <div class="toolbar">
-        <span onclick="selectAll(true)">בחר הכל</span>
-        <span onclick="selectAll(false)">בטל בחירה</span>
-    </div>
-
-    <button class="btn search-btn" id="searchBtn" onclick="searchSelected()">חפש מסומנים בספריה 🔍</button>
-    
-    <div id="wishlist"></div>
+    <button type="button" class="search-btn" id="searchBtn">פתח דף סניפים 📚</button>
+    <div id="status"></div>
 </div>
 
-<form id="hiddenForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST" target="_blank" style="display:none;">
-    <input type="hidden" name="NewNameMade" value="30213">
-    <input type="hidden" name="SiteName" value="LIB_ptikva">
-    <input type="hidden" name="SearchType" value="Card1">
-    <input type="hidden" name="SearchFildType_1" value="DataCardName~DataCardField_1">
-    <input type="hidden" name="FreeText_1" id="finalInput">
-</form>
-
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeMF4NndK0z7EyrqjHBN7jGK_87136az3raZKwqHw2SVdF6dcJsQIab1xlECY3ulaE/exec";
-    let currentBooks = [];
+    var bookInput = document.getElementById('bookInput');
+    var statusDiv = document.getElementById('status');
 
-    // אתחול: טעינת שמות הלשוניות
-    async function init() {
-        try {
-            const res = await fetch(SCRIPT_URL + "?cmd=getLists");
-            const lists = await res.json();
-            const selector = document.getElementById('listSelector');
-            selector.innerHTML = lists.map(l => `<option value="${l}">${l}</option>`).join('');
-            loadBooks();
-        } catch (e) {
-            document.getElementById('status').innerText = "שגיאה בחיבור ל-Google Sheets";
-        }
+    function updateStatus(msg, isError) {
+        statusDiv.innerText = msg;
+        statusDiv.className = isError ? 'error' : 'loading';
     }
 
-    // טעינת ספרים מלשונית שנבחרה
-    async function loadBooks() {
-        const listName = document.getElementById('listSelector').value;
-        document.getElementById('status').innerText = "טוען רשימת " + listName + "...";
-        try {
-            const res = await fetch(SCRIPT_URL + "?cmd=get&list=" + encodeURIComponent(listName));
-            currentBooks = await res.json();
-            render();
-            document.getElementById('status').innerText = "רשימת " + listName + " מעודכנת ✅";
-        } catch (e) {
-            document.getElementById('status').innerText = "שגיאת טעינה";
-        }
+    function runSearch() {
+        var bookName = bookInput.value.trim();
+        if (!bookName) return;
+
+        updateStatus("מחפש מזהה ספר במערכת...", false);
+
+        // שימוש ב-corsproxy.io כדי לעקוף חסימות דפדפן
+        var targetUrl = 'https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php';
+        var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', proxyUrl, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                // חיפוש ה-ItemID בתוך ה-HTML שחזר
+                var match = xhr.responseText.match(/date_card_popup\('(\d+)'/);
+                if (match && match[1]) {
+                    var itemId = match[1];
+                    updateStatus("נמצא! מעביר לדף הסניפים...", false);
+                    
+                    // בניית הכתובת הישירה לדף הסניפים (הדף ששלחת ב-HTML)
+                    var finalUrl = "https://ptikva.libraries.co.il//BuildaGate5library/general2/product_card_edit.php?SiteName=LIB_ptikva&NewNameMade=30213&ItemID=" + itemId + "&Card=Card1&WhatToWorkOn=List";
+                    
+                    window.location.href = finalUrl;
+                } else {
+                    updateStatus("❌ הספר לא נמצא. נסה שם מדויק יותר.", true);
+                }
+            } else {
+                updateStatus("❌ שגיאת תקשורת עם שרת הספריה.", true);
+            }
+        };
+
+        xhr.onerror = function() {
+            updateStatus("❌ שגיאת רשת. בדוק חיבור אינטרנט.", true);
+        };
+
+        // הנתונים שהאתר מצפה לקבל בחיפוש
+        var payload = "NewNameMade=30213&SiteName=LIB_ptikva&SearchType=Card1&SearchFildType_1=DataCardName~DataCardField_1&FreeText_1=" + encodeURIComponent(bookName);
+        xhr.send(payload);
     }
 
-    // הוספת ספר
-    async function addBook() {
-        const name = document.getElementById('bookInput').value.trim();
-        const listName = document.getElementById('listSelector').value;
-        if (!name) return;
-        
-        document.getElementById('status').innerText = "מוסיף לגיליון...";
-        await fetch(SCRIPT_URL + "?cmd=add&name=" + encodeURIComponent(name) + "&list=" + encodeURIComponent(listName));
-        document.getElementById('bookInput').value = "";
-        loadBooks();
-    }
-
-    // מחיקת ספר
-    async function deleteBook(name) {
-        const listName = document.getElementById('listSelector').value;
-        if (!confirm("למחוק את '" + name + "' מהרשימה?")) return;
-        
-        document.getElementById('status').innerText = "מוחק...";
-        await fetch(SCRIPT_URL + "?cmd=delete&name=" + encodeURIComponent(name) + "&list=" + encodeURIComponent(listName));
-        loadBooks();
-    }
-
-    // הצגת הרשימה בדף
-    function render() {
-        const container = document.getElementById('wishlist');
-        if (currentBooks.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:#999;">הרשימה ריקה</p>';
+    function startDictation() {
+        var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Speech) {
+            alert("הדפדפן שלך לא תומך במיקרופון.");
             return;
         }
-        container.innerHTML = currentBooks.map(b => `
-            <div class="book-item">
-                <input type="checkbox" class="book-cb" data-name="${b}">
-                <span class="book-name" onclick="searchSingle('${b}')">${b}</span>
-                <span class="delete-btn" onclick="deleteBook('${b}')">🗑️</span>
-            </div>
-        `).join('');
+        var recognition = new Speech();
+        recognition.lang = "he-IL";
+        recognition.onstart = function() { bookInput.placeholder = "מקשיב..."; };
+        recognition.onresult = function(event) {
+            bookInput.value = event.results[0][0].transcript;
+            runSearch();
+        };
+        recognition.start();
     }
 
-    // בחירה/ביטול בחירה של הכל
-    function selectAll(state) {
-        document.querySelectorAll('.book-cb').forEach(cb => cb.checked = state);
-    }
-
-    // חיפוש ספר בודד
-    function searchSingle(name) {
-        document.getElementById('finalInput').value = name;
-        document.getElementById('hiddenForm').submit();
-    }
-
-    // חיפוש כל המסומנים (פתיחת טאבים)
-    function searchSelected() {
-        const selected = document.querySelectorAll('.book-cb:checked');
-        if (selected.length === 0) return alert("בחר לפחות ספר אחד לחיפוש");
-        
-        selected.forEach((cb, i) => {
-            setTimeout(() => {
-                searchSingle(cb.dataset.name);
-            }, i * 600); // השהייה למניעת חסימת חלונות קופצים
-        });
-    }
-
-    // הפעלה ראשונית
-    init();
-
-    // הוספה בלחיצה על Enter
-    document.getElementById('bookInput').onkeypress = (e) => { if(e.which == 13) addBook(); };
+    document.getElementById('searchBtn').onclick = runSearch;
+    document.getElementById('micBtn').onclick = startDictation;
 </script>
+
 </body>
 </html>
