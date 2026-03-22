@@ -12,81 +12,78 @@
         input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
         .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; }
         .search-btn { width: 100%; padding: 14px; background: #34a853; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        #status { margin-top: 15px; font-size: 14px; font-weight: bold; min-height: 20px; }
-        .loading { color: #1a73e8; }
-        .error { color: #d93025; }
+        #status { margin-top: 15px; font-size: 14px; font-weight: bold; min-height: 20px; color: #1a73e8; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>חיפוש ספריות ישיר</h2>
+    <h2>חיפוש מהיר לסניפים</h2>
     <div class="input-row">
-        <input type="text" id="bookInput" placeholder="שם הספר לחיפוש...">
+        <input type="text" id="bookInput" placeholder="שם הספר...">
         <button type="button" class="mic-btn" id="micBtn">🎤</button>
     </div>
-    <button type="button" class="search-btn" id="searchBtn">פתח דף סניפים 📚</button>
+    <button type="button" class="search-btn" id="searchBtn">מצא סניפים 📚</button>
     <div id="status"></div>
 </div>
+
+<form id="fallbackForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST" target="_blank" style="display:none;">
+    <input type="hidden" name="NewNameMade" value="30213">
+    <input type="hidden" name="SiteName" value="LIB_ptikva">
+    <input type="hidden" name="SearchType" value="Card1">
+    <input type="hidden" name="ThisCard" value="Card1">
+    <input type="hidden" name="SearchFildType_1" value="DataCardName~DataCardField_1">
+    <input type="hidden" name="FreeText_1" id="fallbackInput">
+</form>
 
 <script>
     var bookInput = document.getElementById('bookInput');
     var statusDiv = document.getElementById('status');
 
-    function updateStatus(msg, isError) {
-        statusDiv.innerText = msg;
-        statusDiv.className = isError ? 'error' : 'loading';
-    }
-
     function runSearch() {
         var bookName = bookInput.value.trim();
         if (!bookName) return;
 
-        updateStatus("מחפש מזהה ספר במערכת...", false);
+        statusDiv.innerText = "מנסה דילוג ישיר לסניפים...";
 
-        // שימוש ב-corsproxy.io כדי לעקוף חסימות דפדפן
+        // נסיעה ב"נתיב המהיר" - מציאת ה-ID ודילוג לדף הסניפים
         var targetUrl = 'https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php';
-        var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+        // שימוש בפרוקסי חלופי (AllOrigins) שהוא פחות "נחסם" בדרך כלל
+        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl + '?NewNameMade=30213&SiteName=LIB_ptikva&SearchType=Card1&FreeText_1=' + bookName);
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', proxyUrl, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.open('GET', proxyUrl, true);
+        
+        // הגדרת זמן קצוב - אם תוך 3 שניות אין תשובה, עוברים לגיבוי
+        xhr.timeout = 3000; 
 
         xhr.onload = function() {
-            if (xhr.status === 200) {
-                // חיפוש ה-ItemID בתוך ה-HTML שחזר
-                var match = xhr.responseText.match(/date_card_popup\('(\d+)'/);
-                if (match && match[1]) {
-                    var itemId = match[1];
-                    updateStatus("נמצא! מעביר לדף הסניפים...", false);
-                    
-                    // בניית הכתובת הישירה לדף הסניפים (הדף ששלחת ב-HTML)
-                    var finalUrl = "https://ptikva.libraries.co.il//BuildaGate5library/general2/product_card_edit.php?SiteName=LIB_ptikva&NewNameMade=30213&ItemID=" + itemId + "&Card=Card1&WhatToWorkOn=List";
-                    
-                    window.location.href = finalUrl;
-                } else {
-                    updateStatus("❌ הספר לא נמצא. נסה שם מדויק יותר.", true);
-                }
+            var response = JSON.parse(xhr.responseText);
+            var match = response.contents.match(/date_card_popup\('(\d+)'/);
+            
+            if (match && match[1]) {
+                // הצלחנו למצוא ID! עוברים ישר לדף הסניפים שרצית
+                var itemId = match[1];
+                window.location.href = "https://ptikva.libraries.co.il//BuildaGate5library/general2/product_card_edit.php?SiteName=LIB_ptikva&NewNameMade=30213&ItemID=" + itemId + "&Card=Card1&WhatToWorkOn=List";
             } else {
-                updateStatus("❌ שגיאת תקשורת עם שרת הספריה.", true);
+                submitFallback(bookName);
             }
         };
 
-        xhr.onerror = function() {
-            updateStatus("❌ שגיאת רשת. בדוק חיבור אינטרנט.", true);
-        };
+        xhr.ontimeout = function() { submitFallback(bookName); };
+        xhr.onerror = function() { submitFallback(bookName); };
+        xhr.send();
+    }
 
-        // הנתונים שהאתר מצפה לקבל בחיפוש
-        var payload = "NewNameMade=30213&SiteName=LIB_ptikva&SearchType=Card1&SearchFildType_1=DataCardName~DataCardField_1&FreeText_1=" + encodeURIComponent(bookName);
-        xhr.send(payload);
+    function submitFallback(name) {
+        statusDiv.innerText = "דילוג ישיר נחסם. עובר לחיפוש רגיל...";
+        document.getElementById('fallbackInput').value = name;
+        document.getElementById('fallbackForm').submit();
     }
 
     function startDictation() {
         var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Speech) {
-            alert("הדפדפן שלך לא תומך במיקרופון.");
-            return;
-        }
+        if (!Speech) { alert("הדפדפן לא תומך במיקרופון."); return; }
         var recognition = new Speech();
         recognition.lang = "he-IL";
         recognition.onstart = function() { bookInput.placeholder = "מקשיב..."; };
@@ -100,6 +97,5 @@
     document.getElementById('searchBtn').onclick = runSearch;
     document.getElementById('micBtn').onclick = startDictation;
 </script>
-
 </body>
 </html>
