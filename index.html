@@ -2,100 +2,81 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>חיפוש ספריות פ"ת</title>
     <style>
-        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        h2 { margin-bottom: 20px; color: #1a73e8; }
-        .input-row { display: flex; gap: 8px; margin-bottom: 15px; }
-        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
-        .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; }
-        .search-btn { width: 100%; padding: 14px; background: #34a853; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        #status { margin-top: 15px; font-size: 14px; font-weight: bold; min-height: 20px; color: #1a73e8; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px 20px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
+        h2 { color: #1a73e8; font-size: 28px; margin-bottom: 30px; }
+        .mic-btn { background: #ea4335; color: white; border: none; border-radius: 50%; width: 100px; height: 100px; font-size: 45px; cursor: pointer; box-shadow: 0 8px 20px rgba(234,67,53,0.3); transition: 0.3s; -webkit-tap-highlight-color: transparent; margin-bottom: 20px; }
+        .mic-btn:active { transform: scale(0.9); background: #c5221f; }
+        .listening { animation: pulse 1.5s infinite; background: #c5221f; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(234,67,53, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(234,67,53, 0); } 100% { box-shadow: 0 0 0 0 rgba(234,67,53, 0); } }
+        input[type="text"] { width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 12px; font-size: 18px; margin-bottom: 15px; box-sizing: border-box; text-align: center; outline: none; }
+        .search-btn { background: #34a853; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-size: 18px; font-weight: bold; cursor: pointer; }
+        #status { margin-top: 15px; font-size: 16px; font-weight: bold; color: #5f6368; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>חיפוש מהיר לסניפים</h2>
-    <div class="input-row">
-        <input type="text" id="bookInput" placeholder="שם הספר...">
-        <button type="button" class="mic-btn" id="micBtn">🎤</button>
-    </div>
-    <button type="button" class="search-btn" id="searchBtn">מצא סניפים 📚</button>
-    <div id="status"></div>
+    <h2>חיפוש ספריה מהיר</h2>
+    
+    <button type="button" class="mic-btn" id="micBtn">🎤</button>
+    
+    <form id="searchForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST">
+        <input type="hidden" name="NewNameMade" value="30213">
+        <input type="hidden" name="SiteName" value="LIB_ptikva">
+        <input type="hidden" name="SearchType" value="Card1">
+        <input type="hidden" name="SearchFildType_1" value="DataCardName~DataCardField_1">
+        
+        <input type="text" name="FreeText_1" id="bookInput" placeholder="שם הספר לחיפוש...">
+        <button type="submit" class="search-btn">חפש בספריה 🔍</button>
+    </form>
+    
+    <div id="status">לחצי על המיקרופון ודברי</div>
 </div>
 
-<form id="fallbackForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST" target="_blank" style="display:none;">
-    <input type="hidden" name="NewNameMade" value="30213">
-    <input type="hidden" name="SiteName" value="LIB_ptikva">
-    <input type="hidden" name="SearchType" value="Card1">
-    <input type="hidden" name="ThisCard" value="Card1">
-    <input type="hidden" name="SearchFildType_1" value="DataCardName~DataCardField_1">
-    <input type="hidden" name="FreeText_1" id="fallbackInput">
-</form>
-
 <script>
-    var bookInput = document.getElementById('bookInput');
+    var micBtn = document.getElementById('micBtn');
     var statusDiv = document.getElementById('status');
-
-    function runSearch() {
-        var bookName = bookInput.value.trim();
-        if (!bookName) return;
-
-        statusDiv.innerText = "מנסה דילוג ישיר לסניפים...";
-
-        // נסיעה ב"נתיב המהיר" - מציאת ה-ID ודילוג לדף הסניפים
-        var targetUrl = 'https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php';
-        // שימוש בפרוקסי חלופי (AllOrigins) שהוא פחות "נחסם" בדרך כלל
-        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl + '?NewNameMade=30213&SiteName=LIB_ptikva&SearchType=Card1&FreeText_1=' + bookName);
-
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', proxyUrl, true);
-        
-        // הגדרת זמן קצוב - אם תוך 3 שניות אין תשובה, עוברים לגיבוי
-        xhr.timeout = 3000; 
-
-        xhr.onload = function() {
-            var response = JSON.parse(xhr.responseText);
-            var match = response.contents.match(/date_card_popup\('(\d+)'/);
-            
-            if (match && match[1]) {
-                // הצלחנו למצוא ID! עוברים ישר לדף הסניפים שרצית
-                var itemId = match[1];
-                window.location.href = "https://ptikva.libraries.co.il//BuildaGate5library/general2/product_card_edit.php?SiteName=LIB_ptikva&NewNameMade=30213&ItemID=" + itemId + "&Card=Card1&WhatToWorkOn=List";
-            } else {
-                submitFallback(bookName);
-            }
-        };
-
-        xhr.ontimeout = function() { submitFallback(bookName); };
-        xhr.onerror = function() { submitFallback(bookName); };
-        xhr.send();
-    }
-
-    function submitFallback(name) {
-        statusDiv.innerText = "דילוג ישיר נחסם. עובר לחיפוש רגיל...";
-        document.getElementById('fallbackInput').value = name;
-        document.getElementById('fallbackForm').submit();
-    }
+    var bookInput = document.getElementById('bookInput');
+    var searchForm = document.getElementById('searchForm');
 
     function startDictation() {
         var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Speech) { alert("הדפדפן לא תומך במיקרופון."); return; }
+        if (!Speech) {
+            alert("הדפדפן לא תומך במיקרופון. מומלץ להשתמש בכרום.");
+            return;
+        }
+        
         var recognition = new Speech();
         recognition.lang = "he-IL";
-        recognition.onstart = function() { bookInput.placeholder = "מקשיב..."; };
-        recognition.onresult = function(event) {
-            bookInput.value = event.results[0][0].transcript;
-            runSearch();
+        
+        recognition.onstart = function() {
+            micBtn.classList.add('listening');
+            statusDiv.innerText = "מקשיב...";
         };
+        
+        recognition.onresult = function(event) {
+            micBtn.classList.remove('listening');
+            var text = event.results[0][0].transcript;
+            bookInput.value = text;
+            statusDiv.innerText = "מחפש: " + text;
+            
+            // שולח אוטומטית חצי שנייה אחרי הזיהוי
+            setTimeout(function() { searchForm.submit(); }, 500);
+        };
+        
+        recognition.onerror = function() {
+            micBtn.classList.remove('listening');
+            statusDiv.innerText = "לא שמעתי, נסי שוב";
+        };
+
         recognition.start();
     }
 
-    document.getElementById('searchBtn').onclick = runSearch;
-    document.getElementById('micBtn').onclick = startDictation;
+    micBtn.onclick = startDictation;
 </script>
 </body>
 </html>
