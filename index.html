@@ -1,71 +1,104 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>חיפוש ספריות פ"ת</title>
-  <style>
-    body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
-    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; margin: auto; }
-    h2 { color: #1a73e8; margin-bottom: 20px; }
-    input { width: 80%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 18px; margin-bottom: 10px; text-align: center; }
-    .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    .search-btn { background: #34a853; color: white; }
-    .mic-btn { background: #ea4335; color: white; width: 60px; height: 60px; border-radius: 50%; font-size: 24px; margin: 10px auto; display: block; }
-    p { color: #666; font-size: 14px; margin-top: 15px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>חיפוש ספריות פ"ת</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { margin-bottom: 20px; color: #1a73e8; }
+        .input-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
+        .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; }
+        .search-btn { width: 100%; padding: 14px; background: #34a853; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        #status { margin-top: 15px; font-size: 14px; font-weight: bold; min-height: 20px; }
+        .loading { color: #1a73e8; }
+        .error { color: #d93025; }
+    </style>
 </head>
 <body>
 
 <div class="card">
-  <h2>חיפוש ספריות פ"ת</h2>
-  
-  <button type="button" class="mic-btn" id="micBtn">🎤</button>
-  
-  <form id="searchForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST" target="_blank">
-    <input type="hidden" name="NewNameMade" value="30213">
-    <input type="hidden" name="SiteName" value="LIB_ptikva">
-    <input type="hidden" name="SearchType" value="Card1">
-    <input type="hidden" name="SearchFildType_1" value="DataCardName~DataCardField_1">
-    
-    <input type="text" id="bookInput" name="FreeText_1" placeholder="שם הספר..." required>
-    
-    <button type="submit" class="btn search-btn">חפש והצג סניפים 🚀</button>
-  </form>
-
-  <p>לאחר הלחיצה, בחר את הספר מהרשימה שתופיע כדי לראות את רשימת הספריות.</p>
+    <h2>חיפוש ספריות ישיר</h2>
+    <div class="input-row">
+        <input type="text" id="bookInput" placeholder="שם הספר לחיפוש...">
+        <button type="button" class="mic-btn" id="micBtn">🎤</button>
+    </div>
+    <button type="button" class="search-btn" id="searchBtn">פתח דף סניפים 📚</button>
+    <div id="status"></div>
 </div>
 
 <script>
-  // קוד פשוט מאוד שעובד גם על אנדרואיד ישן
-  var micBtn = document.getElementById('micBtn');
-  var bookInput = document.getElementById('bookInput');
-  var searchForm = document.getElementById('searchForm');
+    var bookInput = document.getElementById('bookInput');
+    var statusDiv = document.getElementById('status');
 
-  micBtn.onclick = function() {
-    var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Speech) {
-      alert("הדפדפן לא תומך במיקרופון. הקלד ידנית.");
-      return;
+    function updateStatus(msg, isError) {
+        statusDiv.innerText = msg;
+        statusDiv.className = isError ? 'error' : 'loading';
     }
-    
-    var recognition = new Speech();
-    recognition.lang = "he-IL";
-    
-    recognition.onstart = function() {
-      bookInput.placeholder = "מקשיב...";
-    };
-    
-    recognition.onresult = function(event) {
-      var text = event.results[0][0].transcript;
-      bookInput.value = text;
-      bookInput.placeholder = "שם הספר...";
-      // שולח אוטומטית אחרי הדיבור
-      searchForm.submit();
-    };
-    
-    recognition.start();
-  };
+
+    function runSearch() {
+        var bookName = bookInput.value.trim();
+        if (!bookName) return;
+
+        updateStatus("מחפש מזהה ספר במערכת...", false);
+
+        // שימוש ב-corsproxy.io כדי לעקוף חסימות דפדפן
+        var targetUrl = 'https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php';
+        var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', proxyUrl, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                // חיפוש ה-ItemID בתוך ה-HTML שחזר
+                var match = xhr.responseText.match(/date_card_popup\('(\d+)'/);
+                if (match && match[1]) {
+                    var itemId = match[1];
+                    updateStatus("נמצא! מעביר לדף הסניפים...", false);
+                    
+                    // בניית הכתובת הישירה לדף הסניפים (הדף ששלחת ב-HTML)
+                    var finalUrl = "https://ptikva.libraries.co.il//BuildaGate5library/general2/product_card_edit.php?SiteName=LIB_ptikva&NewNameMade=30213&ItemID=" + itemId + "&Card=Card1&WhatToWorkOn=List";
+                    
+                    window.location.href = finalUrl;
+                } else {
+                    updateStatus("❌ הספר לא נמצא. נסה שם מדויק יותר.", true);
+                }
+            } else {
+                updateStatus("❌ שגיאת תקשורת עם שרת הספריה.", true);
+            }
+        };
+
+        xhr.onerror = function() {
+            updateStatus("❌ שגיאת רשת. בדוק חיבור אינטרנט.", true);
+        };
+
+        // הנתונים שהאתר מצפה לקבל בחיפוש
+        var payload = "NewNameMade=30213&SiteName=LIB_ptikva&SearchType=Card1&SearchFildType_1=DataCardName~DataCardField_1&FreeText_1=" + encodeURIComponent(bookName);
+        xhr.send(payload);
+    }
+
+    function startDictation() {
+        var Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Speech) {
+            alert("הדפדפן שלך לא תומך במיקרופון.");
+            return;
+        }
+        var recognition = new Speech();
+        recognition.lang = "he-IL";
+        recognition.onstart = function() { bookInput.placeholder = "מקשיב..."; };
+        recognition.onresult = function(event) {
+            bookInput.value = event.results[0][0].transcript;
+            runSearch();
+        };
+        recognition.start();
+    }
+
+    document.getElementById('searchBtn').onclick = runSearch;
+    document.getElementById('micBtn').onclick = startDictation;
 </script>
 
 </body>
