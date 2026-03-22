@@ -3,20 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>חיפוש ספריה קולי</title>
+  <title>חיפוש ספריות פ"ת</title>
   <style>
-    body { font-family: system-ui, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); width: 100%; max-width: 400px; box-sizing: border-box; }
-    h2 { margin-top: 0; color: #1a73e8; text-align: center; }
+    h2 { margin-top: 0; color: #1a73e8; text-align: center; font-size: 22px; }
     .input-row { display: flex; gap: 8px; margin-bottom: 15px; }
-    input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
-    .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; }
-    .search-btn { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
+    input:focus { border-color: #1a73e8; }
+    .mic-btn { background: #ea4335; color: white; border: none; border-radius: 8px; padding: 0 15px; font-size: 20px; cursor: pointer; transition: 0.2s; }
+    .mic-btn:active { transform: scale(0.9); background: #c5221f; }
+    .search-btn { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .search-btn:active { background: #1557b0; }
+    .info { font-size: 13px; color: #666; text-align: center; border-top: 1px solid #eee; pt: 10px; margin-top: 10px; }
   </style>
 </head>
 <body>
+
   <div class="card">
-    <h2>חיפוש ספריות פ"ת</h2>
+    <h2>ספריות פתח תקווה</h2>
+    
     <form id="searchForm" action="https://ptikva.libraries.co.il//BuildaGate5library/general2/company_search_tree.php" method="POST" target="_blank">
       <input type="hidden" name="NewNameMade" value="30213">
       <input type="hidden" name="Referral" value="button">
@@ -27,30 +33,48 @@
       <input type="hidden" name="Bool_1" value=" and ">
 
       <div class="input-row">
-        <input type="text" id="bookInput" name="FreeText_1" placeholder="שם הספר...">
-        <button type="button" class="mic-btn" id="micBtn">🎤</button>
+        <input type="text" id="bookInput" name="FreeText_1" placeholder="איזה ספר לחפש?" autocomplete="off">
+        <button type="button" class="mic-btn" id="micBtn" title="חיפוש קולי">🎤</button>
       </div>
-      <button type="submit" class="search-btn">חפש בספריה 🚀</button>
+      
+      <button type="submit" class="search-btn">חפש עותקים וסניפים 🚀</button>
     </form>
+    
+    <div class="info">
+      החיפוש יפתח את אתר הספריה הרשמי בחלון חדש.<br>
+      שם תוכל לראות בדיוק איזה סניף זמין.
+    </div>
   </div>
 
   <script>
+    // פונקציית המיקרופון
     function startDictation() {
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("הדפדפן לא תומך במיקרופון.");
+        alert("הדפדפן שלך לא תומך במיקרופון. נסה להשתמש בכרום.");
         return;
       }
+
       var recognition = new SpeechRecognition();
       recognition.lang = "he-IL";
-      recognition.onstart = function() { document.getElementById('bookInput').placeholder = "מקשיב..."; };
-      recognition.onresult = function(e) {
-        document.getElementById('bookInput').value = e.results[0][0].transcript;
-        document.getElementById('searchForm').submit();
+      
+      recognition.onstart = function() {
+        document.getElementById('bookInput').placeholder = "מקשיב...";
       };
-      recognition.onerror = function(e) { alert("שגיאת מיקרופון: " + e.error); };
+      
+      recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+        document.getElementById('bookInput').value = transcript;
+        document.getElementById('searchForm').submit(); // שולח אוטומטית אחרי הדיבור
+      };
+      
+      recognition.onerror = function(e) {
+        document.getElementById('bookInput').placeholder = "שגיאה: " + e.error;
+      };
+      
       recognition.start();
     }
+
     document.getElementById("micBtn").onclick = startDictation;
   </script>
 </body>
